@@ -3,8 +3,299 @@
 <head>
 <meta charset="UTF-8">
 <title>Flick SPA</title>
-</head>
+    <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <style type="text/css">
+        @import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300);
 
+        /* make keyframes that tell the start state and the end state of our object */
+        @-webkit-keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @-moz-keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+        .fade-in {
+            opacity:0;  /* make things invisible upon start */
+            -webkit-animation:fadeIn ease-in 1;  /* call our keyframe named fadeIn, use animattion ease-in and repeat it only 1 time */
+            -moz-animation:fadeIn ease-in 1;
+            animation:fadeIn ease-in 1;
+
+            -webkit-animation-fill-mode:forwards;  /* this makes sure that after animation is done we remain at the last keyframe value (opacity: 1)*/
+            -moz-animation-fill-mode:forwards;
+            animation-fill-mode:forwards;
+
+            -webkit-animation-duration:1s;
+            -moz-animation-duration:1s;
+            animation-duration:1s;
+        }
+
+        .fade-in.one {
+            -webkit-animation-delay: 0.7s;
+            -moz-animation-delay: 0.7s;
+            animation-delay: 0.7s;
+        }
+
+        .fade-in.two {
+            -webkit-animation-delay: 1.2s;
+            -moz-animation-delay:1.2s;
+            animation-delay: 1.2s;
+        }
+
+        .fade-in.three {
+            -webkit-animation-delay: 1.6s;
+            -moz-animation-delay: 1.6s;
+            animation-delay: 1.6s;
+        }
+
+        /*---make a basic box ---*/
+        .box{
+            width: 200px;
+            height: 200px;
+            position: relative;
+            margin: 10px;
+            float: left;
+            border: 1px solid #333;
+            background: #999;
+
+        }
+        #sq,#lg-sq,#thumb,#small,#mid,#ori {
+            width: 100%
+        }
+        hr {
+            display: block;
+            position: relative;
+            padding: 0;
+            margin: 8px auto;
+            height: 0;
+            width: 100%;
+            max-height: 0;
+            font-size: 1px;
+            line-height: 0;
+            clear: both;
+            border: none;
+            border-top: 1px solid #aaaaaa;
+            border-bottom: 1px solid #ffffff;
+        }
+        div {
+            overflow: scroll;
+        }
+        <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    </style>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script>
+        var apiurl,myresult,apiurl_size,selected_size;
+        var integer = 0;
+        var ImgNum = 0;
+        var urlArray = '';
+        var ownerArray = '';
+        var titleArray = '';
+        var descriptionArray = '';
+        var tagArray = '';
+        var tagText = '';
+        localStorage.setItem('array', '');
+        apiurl = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=ca370d51a054836007519a00ff4ce59e&per_page=60&format=json&nojsoncallback=1";
+
+        $(document).ready(function(){
+            var idArray = '';
+            document.getElementById("PrevBtn").disabled = true;
+            $.getJSON(apiurl,function(json){
+                $.each(json.photos.photo,function(i,myresult){
+                    var title = this.title;
+                    var ownerNew = this.owner;
+                    var farm = myresult.farm;
+                    var serverId = myresult.server;
+                    var id = myresult.id;
+                    var secret = myresult.secret;
+                    var url = 'https://farm' + farm +'.staticflickr.com/'+ serverId +'/' + id + '_'+ secret +'.jpg';
+                    if(integer == 0){
+                        urlArray = url;
+                        titleArray = title;
+                        ownerArray = ownerNew;
+                        idArray = id;
+                    }else{
+                        urlArray = urlArray + "|" + url;
+
+                        titleArray = titleArray + '|' + title;
+
+                        idArray = idArray + '|' + id;
+                    }
+                    integer = integer + 1;
+                });
+                getUserNames(idArray);
+            });
+        });
+
+        function getUserNames(IdArray){
+            var arrayLength = IdArray.length;
+            for (var i=0; i < arrayLength; i++) {
+                var photoID = IdArray.split('|');
+                var apiNew = "https://api.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key=008c12240410e50c9f5c8eb3e69f9d30&photo_id=" + photoID[i] + "&format=json&nojsoncallback=1";
+                var ownerNew = '';
+                var descNew = '';
+                var tagNew = '';
+                $.getJSON(apiNew, function (json) {
+                    if(json.photo.owner.username != '') {
+                        ownerNew = json.photo.owner.username;
+                        descNew = json.photo.description._content;
+                        if(tagNew != ''){
+                            console.log(json.photo.tags.tag._content);
+                        }
+                        if (i == 0) {
+                            ownerArray = ownerNew;
+                            descriptionArray = descNew;
+                        } else {
+                            ownerArray = ownerArray + '|' + ownerNew;
+                            descriptionArray = descriptionArray + '|' + descNew;
+                        }
+                    }
+                });
+                $.getJSON(apiNew, function (data) {
+                    $.each(data.photo.tags.tag, function(j, item){
+                        tagNew = (item.raw);
+                        if(i == 0){
+                            tagArray = tagNew;
+                        }else{
+                            tagArray = tagArray + '|' + tagNew;
+                        }
+                    });
+                });
+            }
+            populateImages();
+        }
+
+        function populateImages(){
+            document.getElementById('tagLbl').value = tagText;
+            var urls = urlArray.split("|");
+            var title = titleArray.split("|");
+            var owner = ownerArray.split("|");
+            var desc  = descriptionArray.split("|");
+            var tag = tagArray.split("|");
+            for(i = 0; i < 3; i ++){
+                if(ImgNum == 59){
+                    document.getElementById("NextBtn").disabled = true;
+                }
+                if(ImgNum == 0){
+                    document.getElementById("PrevBtn").disabled = true;
+                }
+                document.getElementById("Image" + i).src =  (urls[ImgNum]);
+                if(title[ImgNum] != '') {
+                    document.getElementById('title' + i).textContent = (title[ImgNum]);
+                }else{
+                    document.getElementById('title' + i).textContent = 'N/A';
+                }
+
+                if(owner[ImgNum]) {
+                    document.getElementById('owner' + i).textContent = (owner[ImgNum]);
+                }else{
+                    document.getElementById('owner' + i).textContent = 'N/A';
+                }
+
+                if(desc[ImgNum]) {
+                    document.getElementById('Description' + i).innerHTML = (desc[ImgNum]);
+                }else{
+                    document.getElementById('Description' + i).textContent = 'N/A';
+                }
+
+                if(tag[ImgNum]) {
+                    document.getElementById('tag' + i).textContent = (tag[ImgNum]);
+                }else{
+                    document.getElementById('tag' + i).textContent = 'N/A';
+                }
+                ImgNum++;
+            }
+
+        }
+
+        function imgNext(){
+            document.getElementById("PrevBtn").disabled = false;
+            ImgNum = ImgNum - 2;
+            populateImages();
+        }
+
+        function imgPrev() {
+            document.getElementById("NextBtn").disabled = false;
+            ImgNum = ImgNum - 4;
+            populateImages();
+        }
+
+        function SearchBtn(){
+            integer = 0;
+            var tag = document.getElementById("SearchTxt").value;
+            var tagApi= 'http://api.flickr.com/services/rest/?&method=flickr.photos.search&tags='+ tag +'&api_key=ca370d51a054836007519a00ff4ce59e&per_page=60&format=json&nojsoncallback=1';
+            $.getJSON(tagApi,function(data) {
+                $.each(data.photos.photo,function(i,myresult){
+                    var farm = myresult.farm;
+                    var serverId = myresult.server;
+                    var id = myresult.id;
+                    var secret = myresult.secret;
+                    var url = 'https://farm' + farm +'.staticflickr.com/'+ serverId +'/' + id + '_'+ secret +'.jpg';
+                    if(integer == 0){
+                        urlArray = url;
+                    }else{
+                        urlArray = urlArray + "|" + url;
+                    }
+                    integer = integer + 1;
+                });
+            });
+            tagText = document.getElementById('tagLbl').value;
+            document.getElementById("SearchTxt").value = '';
+            populateImages();
+        }
+
+    </script>
+</head>
 <body>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-4">
+            <h1>Flickr API single page app</h1>
+        </div>
+        <div class="col-sm-4">
+            <label style="text-align: center" id="tagLbl">test</label>
+        </div>
+        <div class="col-sm-4" style="margin-top:1.5%;">
+            <form class="navbar-form navbar-left">
+                <div class="form-group">
+                    <input type="text" class="form-control" id="SearchTxt" placeholder="Search tags...">
+                </div>
+                <button type="button" class="btn btn-default" onclick="return SearchBtn();">Submit</button>
+            </form>
+        </div>
+        <hr>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="thumbnail fade-in one">
+                <img id="Image0" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Lights" style="height:40%">
+                <div class="caption" style="height: 25%;">
+                    <a href="#" id="titleLink0"><span id="title0">Photo title</span></a> by <a href="#"><span id="owner0">Author</span></a><br />
+                    <p><strong>Description - </strong><span id="Description0">................................................ ................</span></p>
+                    <p><strong>Tags: </strong><span id="tag0"><i>Tag1, Tag2, Tag3, ...</i></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="thumbnail fade-in two">
+                <img id="Image1" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Nature" style="height:40%">
+                <div class="caption" style="height: 25%;">
+                    <a href="#"><span id="title1">Photo title</span> </a> by <a href="#"><span id="owner1">Author</span></a><br />
+                    <p><strong>Description - </strong><span id="Description1">................................................ ................</span></p>
+                    <p><strong>Tags: </strong><span id="tag1"><i>Tag1, Tag2, Tag3, ...</i></span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="thumbnail fade-in three">
+                <img id="Image2" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Fjords" style="height:40%">
+                <div class="caption" style="height: 25%;">
+                    <a href="#"><span id="title2">Photo title</span></a> by <a href="#"><span id="owner2">Author</span></a><br />
+                    <p><strong>Description - </strong><span id="Description2">................................................ ................</span></p>
+                    <p><strong>Tags: </strong><span id="tag2"><i>Tag1, Tag2, Tag3, ...</i><span/></p>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" id="PrevBtn" class="btn btn-primary pull-left" data-toggle="button" aria-pressed="false" onclick="return imgPrev();">Previous</button>
+        <button type="button" id="NextBtn" class="btn btn-primary pull-right" data-toggle="button" aria-pressed="false" onclick="return imgNext();">Next</button>
+
+</div>
 </body>
 </html>
