@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Flick SPA</title>
-    <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+   <link rel="stylesheet" type="text/css" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
     <style type="text/css">
         @import url(https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300);
 
@@ -81,6 +81,7 @@
     </style>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script>
+        //Init global variables
         var apiurl,myresult,apiurl_size,selected_size;
         var integer = 0;
         var ImgNum = 0;
@@ -90,11 +91,14 @@
         var descriptionArray = '';
         var tagArray = '';
         var tagText = '';
-        localStorage.setItem('array', '');
+        var ownerNSID = '';
+        var idArray = '';
+
+        //set up first api link for retrieving xml data for recent photos
         apiurl = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=ca370d51a054836007519a00ff4ce59e&per_page=60&format=json&nojsoncallback=1";
 
+        //get titles and photo Id's from the photos.getRecent xml results
         $(document).ready(function(){
-            var idArray = '';
             document.getElementById("PrevBtn").disabled = true;
             $.getJSON(apiurl,function(json){
                 $.each(json.photos.photo,function(i,myresult){
@@ -119,33 +123,36 @@
                     }
                     integer = integer + 1;
                 });
-                getUserNames(idArray);
+                getUserNames();
             });
         });
-
-        function getUserNames(IdArray){
-            var arrayLength = IdArray.length;
+        //get usernames, User_Id's, descriptions and tags from the photos.getInfo xml results
+        function getUserNames(){
+            var arrayLength = idArray.length;
             for (var i=0; i < arrayLength; i++) {
-                var photoID = IdArray.split('|');
-                var apiNew = "https://api.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key=008c12240410e50c9f5c8eb3e69f9d30&photo_id=" + photoID[i] + "&format=json&nojsoncallback=1";
+                var photoID = idArray.split('|');
+                var apiNew = "https://api.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key=c87e85837bb4401b2019d14c0d709185&photo_id=" + photoID[i] + "&format=json&nojsoncallback=1";
                 var ownerNew = '';
                 var descNew = '';
                 var tagNew = '';
+                var ownerNSIDNew = '';
                 $.getJSON(apiNew, function (json) {
                     if(json.photo.owner.username != '') {
                         ownerNew = json.photo.owner.username;
                         descNew = json.photo.description._content;
-                        if(tagNew != ''){
-                            console.log(json.photo.tags.tag._content);
-                        }
+                        ownerNSIDNew = json.photo.owner.nsid;
                         if (i == 0) {
                             ownerArray = ownerNew;
+                            ownerNSID = ownerNSIDNew;
                             descriptionArray = descNew;
                         } else {
+                            ownerNSID = ownerNSID + '|' + ownerNSIDNew;
                             ownerArray = ownerArray + '|' + ownerNew;
+
                             descriptionArray = descriptionArray + '|' + descNew;
                         }
                     }
+
                 });
                 $.getJSON(apiNew, function (data) {
                     $.each(data.photo.tags.tag, function(j, item){
@@ -160,15 +167,17 @@
             }
             populateImages();
         }
-
+        //check if the arrays have any values and if they do populate all labels, links and image sources
         function populateImages(){
-            document.getElementById('tagLbl').value = tagText;
             var urls = urlArray.split("|");
             var title = titleArray.split("|");
             var owner = ownerArray.split("|");
             var desc  = descriptionArray.split("|");
             var tag = tagArray.split("|");
-            for(i = 0; i < 3; i ++){
+            var ownerNSIDNew = ownerNSID.split('|');
+            var photoID = idArray.split('|');
+            for(i = 0; i < 3; i++){
+
                 if(ImgNum == 59){
                     document.getElementById("NextBtn").disabled = true;
                 }
@@ -182,74 +191,86 @@
                     document.getElementById('title' + i).textContent = 'N/A';
                 }
 
-                if(owner[ImgNum]) {
+                if(owner[ImgNum] != '') {
                     document.getElementById('owner' + i).textContent = (owner[ImgNum]);
+                    var link = document.getElementById('titleLink' + i);
+                    var titleLink = ("https://www.flickr.com/photos/" + (ownerNSIDNew[ImgNum]) +'/'+photoID[ImgNum]);
+                    link.setAttribute('href', titleLink);
                 }else{
                     document.getElementById('owner' + i).textContent = 'N/A';
                 }
 
-                if(desc[ImgNum]) {
+                if(desc[ImgNum] != '') {
                     document.getElementById('Description' + i).innerHTML = (desc[ImgNum]);
                 }else{
                     document.getElementById('Description' + i).textContent = 'N/A';
                 }
 
-                if(tag[ImgNum]) {
+                if(tag[ImgNum] != '') {
                     document.getElementById('tag' + i).textContent = (tag[ImgNum]);
                 }else{
                     document.getElementById('tag' + i).textContent = 'N/A';
+                }
+                if(ownerNSIDNew[ImgNum] != ''){
+                    var link = document.getElementById('ownerLink' + i);
+                    link.setAttribute('href',"https://www.flickr.com/photos/" + (ownerNSIDNew[ImgNum]));
                 }
                 ImgNum++;
             }
 
         }
-
+        //if image next has been clicked then load the next photo (-2 to get the next 1 photo in the array)
         function imgNext(){
             document.getElementById("PrevBtn").disabled = false;
             ImgNum = ImgNum - 2;
             populateImages();
         }
-
+        //if image previous has been clicked then load the previous photo (-4 to load the previous one photo)
         function imgPrev() {
             document.getElementById("NextBtn").disabled = false;
             ImgNum = ImgNum - 4;
             populateImages();
         }
 
-        function SearchBtn(){
+        //when the search button has been clicked get the value from the text box and use the search api to get the photos relating to that tag then repopulate the images
+        function SearchBtn() {
             integer = 0;
             var tag = document.getElementById("SearchTxt").value;
-            var tagApi= 'http://api.flickr.com/services/rest/?&method=flickr.photos.search&tags='+ tag +'&api_key=ca370d51a054836007519a00ff4ce59e&per_page=60&format=json&nojsoncallback=1';
-            $.getJSON(tagApi,function(data) {
-                $.each(data.photos.photo,function(i,myresult){
-                    var farm = myresult.farm;
-                    var serverId = myresult.server;
-                    var id = myresult.id;
-                    var secret = myresult.secret;
+            var tagApi = 'http://api.flickr.com/services/rest/?&method=flickr.photos.search&tags=' + tag + '&api_key=ca370d51a054836007519a00ff4ce59e&per_page=60&format=json&nojsoncallback=1';
+            $.getJSON(tagApi, function (data) {
+                $.each(data.photos.photo, function (i, myresult) {
+                    var title = this.title;
+                    var ownerNew = this.owner;
+                    var farm = this.farm;
+                    var serverId = this.server;
+                    var id = this.id;
+                    var secret = this.secret;
                     var url = 'https://farm' + farm +'.staticflickr.com/'+ serverId +'/' + id + '_'+ secret +'.jpg';
                     if(integer == 0){
                         urlArray = url;
+                        titleArray = title;
+                        ownerArray = ownerNew;
+                        idArray = id;
                     }else{
                         urlArray = urlArray + "|" + url;
+
+                        titleArray = titleArray + '|' + title;
+
+                        idArray = idArray + '|' + id;
                     }
                     integer = integer + 1;
                 });
+                document.getElementById("SearchTxt").value = '';
+                getUserNames();
             });
-            tagText = document.getElementById('tagLbl').value;
-            document.getElementById("SearchTxt").value = '';
-            populateImages();
         }
-
     </script>
 </head>
 <body>
 <div class="container">
     <div class="row">
-        <div class="col-sm-4">
+        <div class="col-sm-8">
             <h1>Flickr API single page app</h1>
-        </div>
-        <div class="col-sm-4">
-            <label style="text-align: center" id="tagLbl">test</label>
         </div>
         <div class="col-sm-4" style="margin-top:1.5%;">
             <form class="navbar-form navbar-left">
@@ -266,7 +287,7 @@
             <div class="thumbnail fade-in one">
                 <img id="Image0" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Lights" style="height:40%">
                 <div class="caption" style="height: 25%;">
-                    <a href="#" id="titleLink0"><span id="title0">Photo title</span></a> by <a href="#"><span id="owner0">Author</span></a><br />
+                    <a href="#" id="titleLink0" target="_blank" onclick="return checkLink();"><span id="title0">Photo title</span></a> by <a href="#" id="ownerLink0" target="_blank"><span id="owner0">Author</span></a><br />
                     <p><strong>Description - </strong><span id="Description0">................................................ ................</span></p>
                     <p><strong>Tags: </strong><span id="tag0"><i>Tag1, Tag2, Tag3, ...</i></p>
                 </div>
@@ -276,7 +297,7 @@
             <div class="thumbnail fade-in two">
                 <img id="Image1" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Nature" style="height:40%">
                 <div class="caption" style="height: 25%;">
-                    <a href="#"><span id="title1">Photo title</span> </a> by <a href="#"><span id="owner1">Author</span></a><br />
+                    <a href="#" id="titleLink1" target="_blank"><span id="title1">Photo title</span> </a> by <a href="#" id="ownerLink1" target="_blank"><span id="owner1">Author</span></a><br />
                     <p><strong>Description - </strong><span id="Description1">................................................ ................</span></p>
                     <p><strong>Tags: </strong><span id="tag1"><i>Tag1, Tag2, Tag3, ...</i></span></p>
                 </div>
@@ -286,7 +307,7 @@
             <div class="thumbnail fade-in three">
                 <img id="Image2" src="https://www.w3schools.com/howto/img_fjords.jpg" alt="Fjords" style="height:40%">
                 <div class="caption" style="height: 25%;">
-                    <a href="#"><span id="title2">Photo title</span></a> by <a href="#"><span id="owner2">Author</span></a><br />
+                    <a href="#" id="titleLink2" target="_blank"><span id="title2">Photo title</span></a> by <a href="#" id="ownerLink2" target="_blank"><span id="owner2">Author</span></a><br />
                     <p><strong>Description - </strong><span id="Description2">................................................ ................</span></p>
                     <p><strong>Tags: </strong><span id="tag2"><i>Tag1, Tag2, Tag3, ...</i><span/></p>
                 </div>
